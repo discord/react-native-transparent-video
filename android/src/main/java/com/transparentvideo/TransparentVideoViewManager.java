@@ -76,4 +76,10 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
       alphaMovieView.setVideoByUrl(file);
     }
   }
+
+  @ReactProp(name = "autoplay")
+  public void setAutoplay(LinearLayout view, boolean autoplay) {
+    AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
+    alphaMovieView.setAutoplay(autoplay);
+  }
 }
