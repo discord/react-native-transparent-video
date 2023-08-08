@@ -72,8 +72,9 @@ public class AlphaMovieView extends GLTextureView {
     // This should be populated with a MediaPlayer.SEEK_* constant
     // Only for API 26 and above
     private int loopSeekingMethod = 0; //numeros
-    private String shader; //letras y numeros
+    private String shader; //letters and numbers
 
+    private boolean autoplay;
     private boolean autoPlayAfterResume;//si o no
     private boolean playAfterResume;
 
@@ -325,6 +326,10 @@ public class AlphaMovieView extends GLTextureView {
         } catch (IOException e) {
             Log.e(TAG, e.getMessage(), e);
         }
+    }
+
+    public void setAutoplay(boolean autoplay) {
+        this.autoplay = autoplay;
     }
 
   public void setVideoFromResourceId(Context context, int resId) {
