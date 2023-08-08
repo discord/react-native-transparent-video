@@ -6,6 +6,7 @@ import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource'
 type TransparentVideoProps = {
   style: ViewStyle;
   source?: any;
+  autoplay?: boolean;
 };
 
 const ComponentName = 'TransparentVideoView';
@@ -26,6 +27,7 @@ class TransparentVideo extends React.PureComponent<TransparentVideoProps> {
       src: {
         uri,
         type: source.type || '',
+        autoplay: nativeProps.autoplay,
       },
     });
 
