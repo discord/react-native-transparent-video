@@ -27,8 +27,8 @@ class TransparentVideo extends React.PureComponent<TransparentVideoProps> {
       src: {
         uri,
         type: source.type || '',
-        autoplay: nativeProps.autoplay,
       },
+      autoplay: nativeProps.autoplay,
     });
 
     return <TransparentVideoView {...nativeProps} />;
