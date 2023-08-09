@@ -74,8 +74,8 @@ public class AlphaMovieView extends GLTextureView {
     private int loopSeekingMethod = 0; //numeros
     private String shader; //letters and numbers
 
-    private boolean autoplay;
     private boolean autoPlayAfterResume;//si o no
+    private boolean autoPlayAfterInit;
     private boolean playAfterResume;
 
     private PlayerState state = PlayerState.NOT_PREPARED;
@@ -163,6 +163,7 @@ public class AlphaMovieView extends GLTextureView {
             this.accuracy = arr.getFloat(R.styleable.AlphaMovieView_accuracy, 0.95f);
             this.alphaColor = arr.getColor(R.styleable.AlphaMovieView_alphaColor, Color.argb(1,0,255,0));
             this.autoPlayAfterResume = arr.getBoolean(R.styleable.AlphaMovieView_autoPlayAfterResume, false);
+            this.autoPlayAfterInit = arr.getBoolean(R.styleable.AlphaMovieView_autoPlayAfterInit, false);
             this.isPacked = arr.getBoolean(R.styleable.AlphaMovieView_packed, false);
             this.loopStartMs = arr.getInteger(R.styleable.AlphaMovieView_loopStartMs, -1);
             this.loopEndMs = arr.getInteger(R.styleable.AlphaMovieView_loopEndMs, -1);
@@ -264,6 +265,10 @@ public class AlphaMovieView extends GLTextureView {
         this.autoPlayAfterResume = autoPlayAfterResume;
     }
 
+    public void setAutoPlayAfterInit(boolean autoPlayAfterInit) {
+        this.autoPlayAfterInit = autoPlayAfterInit;
+    }
+
     public void setPacked(boolean isPacked) {
         this.isPacked = isPacked;
         renderer.setPacked(isPacked);
@@ -326,10 +331,6 @@ public class AlphaMovieView extends GLTextureView {
         } catch (IOException e) {
             Log.e(TAG, e.getMessage(), e);
         }
-    }
-
-    public void setAutoplay(boolean autoplay) {
-        this.autoplay = autoplay;
     }
 
   public void setVideoFromResourceId(Context context, int resId) {
@@ -467,6 +468,9 @@ public class AlphaMovieView extends GLTextureView {
                     state = PlayerState.STARTED;
                     if (onVideoStartedListener != null) {
                         onVideoStartedListener.onVideoStarted();
+                    }
+                    if (!autoPlayAfterInit) {
+                      mediaPlayer.pause();
                     }
                     break;
                 case PAUSED:
