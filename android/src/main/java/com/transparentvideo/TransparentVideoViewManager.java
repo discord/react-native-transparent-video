@@ -27,6 +27,8 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
   public static final String REACT_CLASS = "TransparentVideoView";
   private static final String TAG = "TransparentVideoViewManager";
 
+  private boolean autoplay = false;
+
   ReactApplicationContext reactContext;
 
   public TransparentVideoViewManager(ReactApplicationContext reactContext) {
@@ -51,6 +53,12 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
     sInstances.remove(view);
   }
 
+
+  @ReactProp(name = "autoplay")
+  public void setAutoplay(LinearLayout view, boolean autoplay) {
+    this.autoplay = autoplay;
+  }
+
   @ReactProp(name = "src")
   public void setSrc(LinearLayout view, ReadableMap src) {
     AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
@@ -60,12 +68,12 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
       lp.gravity = Gravity.CENTER;
       alphaMovieView.setLayoutParams(lp);
       alphaMovieView.setAutoPlayAfterResume(true);
+      alphaMovieView.setAutoPlayAfterInit(this.autoplay);
       view.addView(alphaMovieView);
     }
     alphaMovieView.setPacked(true);
     String file = src.getString("uri").toLowerCase();
     Log.d(TAG + " setSrc", "file: " + file);
-
     try {
       Integer rawResourceId = Utils.getRawResourceId(reactContext, file);
       Log.d(TAG + " setSrc", "ResourceID: " + rawResourceId);

@@ -3,6 +3,7 @@
   <declare-styleable name="AlphaMovieView">
     <attr name="alphaColor" format="color" />
     <attr name="autoPlayAfterResume" format="boolean" />
+    <attr name="autoPlayAfterInit" format="integer" />
     <attr name="loopStartMs" format="integer" />
     <attr name="loopEndMs" format="integer" />
     <attr name="loopSeekingMethod" format="integer" />
