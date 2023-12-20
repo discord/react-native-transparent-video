@@ -57,19 +57,19 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
   @ReactProp(name = "autoplay")
   public void setAutoplay(LinearLayout view, boolean autoplay) {
     this.autoplay = autoplay;
-    AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
-    if (alphaMovieView != null) {
-      alphaMovieView.setAutoPlayAfterInit(autoplay);
-    }
+    // AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
+    // if (alphaMovieView != null) {
+    //   alphaMovieView.setAutoPlayAfterInit(autoplay);
+    // }
   }
 
   @ReactProp(name = "loop")
   public void setLoop(LinearLayout view, boolean loop) {
     this.loop = loop;
-    AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
-    if (alphaMovieView != null) {
-      alphaMovieView.setLooping(loop);
-    }
+    // AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
+    // if (alphaMovieView != null) {
+    //   alphaMovieView.setLooping(loop);
+    // }
   }
 
   @ReactProp(name = "src")
@@ -81,8 +81,8 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
       lp.gravity = Gravity.CENTER;
       alphaMovieView.setLayoutParams(lp);
       alphaMovieView.setAutoPlayAfterResume(true);
-      alphaMovieView.setAutoPlayAfterInit(this.autoplay);
-      alphaMovieView.setLooping(this.loop);
+      // alphaMovieView.setAutoPlayAfterInit(this.autoplay);
+      // alphaMovieView.setLooping(this.loop);
       view.addView(alphaMovieView);
     }
     alphaMovieView.setPacked(true);
