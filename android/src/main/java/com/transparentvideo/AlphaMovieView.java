@@ -471,6 +471,7 @@ public class AlphaMovieView extends GLTextureView {
                     }
                     if (!autoPlayAfterInit) {
                       mediaPlayer.pause();
+                      state = PlayerState.PAUSED;
                     }
                     break;
                 case PAUSED:

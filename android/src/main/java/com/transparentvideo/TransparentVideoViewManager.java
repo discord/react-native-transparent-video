@@ -57,11 +57,19 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
   @ReactProp(name = "autoplay")
   public void setAutoplay(LinearLayout view, boolean autoplay) {
     this.autoplay = autoplay;
+    AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
+    if (alphaMovieView != null) {
+      alphaMovieView.setAutoPlayAfterInit(autoplay);
+    }
   }
 
   @ReactProp(name = "loop")
   public void setLoop(LinearLayout view, boolean loop) {
     this.loop = loop;
+    AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
+    if (alphaMovieView != null) {
+      alphaMovieView.setLooping(loop);
+    }
   }
 
   @ReactProp(name = "src")
