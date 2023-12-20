@@ -28,6 +28,7 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
   private static final String TAG = "TransparentVideoViewManager";
 
   private boolean autoplay = false;
+  private boolean loop = false;
 
   ReactApplicationContext reactContext;
 
@@ -53,10 +54,14 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
     sInstances.remove(view);
   }
 
-
   @ReactProp(name = "autoplay")
   public void setAutoplay(LinearLayout view, boolean autoplay) {
     this.autoplay = autoplay;
+  }
+
+  @ReactProp(name = "loop")
+  public void setLoop(LinearLayout view, boolean loop) {
+    this.loop = loop;
   }
 
   @ReactProp(name = "src")
@@ -69,6 +74,7 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
       alphaMovieView.setLayoutParams(lp);
       alphaMovieView.setAutoPlayAfterResume(true);
       alphaMovieView.setAutoPlayAfterInit(this.autoplay);
+      alphaMovieView.setLooping(this.loop);
       view.addView(alphaMovieView);
     }
     alphaMovieView.setPacked(true);
