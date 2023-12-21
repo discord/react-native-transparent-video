@@ -54,7 +54,7 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
 
   public static void destroyView(LinearLayout view) {
     Log.i(TAG, "destroyView");
-    sInstances.remove(view);
+    // sInstances.remove(view);
   }
 
   @ReactProp(name = "autoplay")
