@@ -460,10 +460,10 @@ public class AlphaMovieView extends GLTextureView {
     }
 
     public void start() {
-        Log.d(TAG, "start: ", "state: " + state);
         if (mediaPlayer != null) {
             switch (state) {
                 case PREPARED:
+                    Log.i(TAG, "prepared");
                     mediaPlayer.start();
                     startTimeDetector();
                     state = PlayerState.STARTED;
@@ -476,11 +476,13 @@ public class AlphaMovieView extends GLTextureView {
                     }
                     break;
                 case PAUSED:
+                    Log.i(TAG, "paused");
                     mediaPlayer.start();
                     startTimeDetector();
                     state = PlayerState.STARTED;
                     break;
                 case STOPPED:
+                    Log.i(TAG, "stopped");
                     prepareAsync(new MediaPlayer.OnPreparedListener() {
                         @Override
                         public void onPrepared(MediaPlayer mp) {
