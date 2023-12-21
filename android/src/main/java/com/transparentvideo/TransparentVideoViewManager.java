@@ -79,7 +79,7 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
     String file = src.getString("uri").toLowerCase();
     AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
     if (alphaMovieView == null) {
-      Log.i(TAG + "alpha movie view not found");
+      Log.i(TAG, "alpha movie view not found");
       alphaMovieView = new AlphaMovieView(reactContext, null);
       LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT);
       lp.gravity = Gravity.CENTER;
@@ -87,10 +87,10 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
       // alphaMovieView.setAutoPlayAfterResume(true);
       // alphaMovieView.setAutoPlayAfterInit(this.autoplay);
       // alphaMovieView.setLooping(this.loop);
-      Log.i(TAG + "alpha movie view added");
+      Log.i(TAG, "alpha movie view added");
       view.addView(alphaMovieView);
     } else {
-      Log.i(TAG + "alpha movie view found");
+      Log.i(TAG, "alpha movie view found");
     }
     Log.d(TAG + " setSrc", "file: " + file);
     // alphaMovieView.setLayoutParams(lp);

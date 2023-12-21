@@ -460,7 +460,7 @@ public class AlphaMovieView extends GLTextureView {
     }
 
     public void start() {
-        Log.d(TAG, "start: ", "state: "+state);
+        Log.d(TAG, "start: ", "state: " + state);
         if (mediaPlayer != null) {
             switch (state) {
                 case PREPARED:
