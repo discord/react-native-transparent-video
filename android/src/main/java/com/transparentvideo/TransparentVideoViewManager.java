@@ -57,6 +57,7 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
   @ReactProp(name = "autoplay")
   public void setAutoplay(LinearLayout view, boolean autoplay) {
     this.autoplay = autoplay;
+    Log.d(TAG + " setAutoplay", "autoplay: " + autoplay);
     // AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
     // if (alphaMovieView != null) {
     //   alphaMovieView.setAutoPlayAfterInit(autoplay);
@@ -66,6 +67,7 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
   @ReactProp(name = "loop")
   public void setLoop(LinearLayout view, boolean loop) {
     this.loop = loop;
+    Log.d(TAG + " setLoop", "loop: " + loop);
     // AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
     // if (alphaMovieView != null) {
     //   alphaMovieView.setLooping(loop);
@@ -74,28 +76,37 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
 
   @ReactProp(name = "src")
   public void setSrc(LinearLayout view, ReadableMap src) {
+    String file = src.getString("uri").toLowerCase();
     AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
     if (alphaMovieView == null) {
+      Log.d(TAG + "alpha movie view not found")
       alphaMovieView = new AlphaMovieView(reactContext, null);
       LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT);
       lp.gravity = Gravity.CENTER;
-      alphaMovieView.setLayoutParams(lp);
-      alphaMovieView.setAutoPlayAfterResume(true);
+      // alphaMovieView.setLayoutParams(lp);
+      // alphaMovieView.setAutoPlayAfterResume(true);
       // alphaMovieView.setAutoPlayAfterInit(this.autoplay);
       // alphaMovieView.setLooping(this.loop);
+      Log.d(TAG + "alpha movie view added")
       view.addView(alphaMovieView);
+    } else {
+      Log.d(TAG + "alpha movie view found")
     }
-    alphaMovieView.setPacked(true);
-    String file = src.getString("uri").toLowerCase();
     Log.d(TAG + " setSrc", "file: " + file);
-    try {
-      Integer rawResourceId = Utils.getRawResourceId(reactContext, file);
-      Log.d(TAG + " setSrc", "ResourceID: " + rawResourceId);
+    alphaMovieView.setLayoutParams(lp);
+    alphaMovieView.setAutoPlayAfterResume(true);
+    alphaMovieView.setPacked(true);
+    alphaMovieView.setVideoByUrl(file);
+    alphaMovieView.setLooping(true);
+    alphaMovieView.setAutoPlayAfterInit(true);
+    // try {
+    //   Integer rawResourceId = Utils.getRawResourceId(reactContext, file);
+    //   Log.d(TAG + " setSrc", "ResourceID: " + rawResourceId);
 
-      alphaMovieView.setVideoFromResourceId(reactContext, rawResourceId);
-    } catch (RuntimeException e) {
-      Log.e(TAG + " setSrc", e.getMessage(), e);
-      alphaMovieView.setVideoByUrl(file);
-    }
+    //   alphaMovieView.setVideoFromResourceId(reactContext, rawResourceId);
+    // } catch (RuntimeException e) {
+    //   Log.e(TAG + " setSrc", e.getMessage(), e);
+    //   alphaMovieView.setVideoByUrl(file);
+    // }
   }
 }
