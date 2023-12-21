@@ -34,6 +34,7 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
 
   public TransparentVideoViewManager(ReactApplicationContext reactContext) {
     this.reactContext = reactContext;
+    Log.i(TAG, "TransparentVideoViewManager created");
   }
 
   @Override
@@ -45,6 +46,7 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
   @Override
   @NonNull
   public LinearLayout createViewInstance(ThemedReactContext reactContext) {
+    Log.i(TAG, "createViewInstance");
     LinearLayout view = new LinearLayout(this.reactContext);
     sInstances.add(view);
     return view;

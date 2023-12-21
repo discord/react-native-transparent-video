@@ -33,6 +33,8 @@ class TransparentVideo extends React.PureComponent<TransparentVideoProps> {
       loop: nativeProps.loop ?? true,
     });
 
+    console.log('RENDERING NATIVE VIDEO', nativeProps);
+
     return <TransparentVideoView {...nativeProps} />;
   }
 }
