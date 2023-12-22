@@ -10,7 +10,9 @@ import AVFoundation
 import UIKit
 
 public class AVPlayerView: UIView {
-    
+
+    public var loopFrom: Int?
+
     deinit {
         playerItem = nil
     }
@@ -24,15 +26,15 @@ public class AVPlayerView: UIView {
     }
 
     public private(set) var player: AVPlayer? {
-        set { playerLayer.player = newValue }
-        get { return playerLayer.player }
+        didSet {
+            playerLayer.player = player
+        }
     }
-    
+
     private var playerItemStatusObserver: NSKeyValueObservation?
 
-    private(set) var playerItem: AVPlayerItem? = nil {
+    private(set) var playerItem: AVPlayerItem? {
         didSet {
-            // If `isLoopingEnabled` is called before the AVPlayer was set
             setupLooping()
         }
     }
@@ -63,9 +65,9 @@ public class AVPlayerView: UIView {
             }
         }
     }
-    
-    // MARK: - Looping Handler
-    
+        
+
+    // MARK: - Looping Handler   
     /// When set to `true`, the player view automatically adds an observer on its AVPlayer,
     /// and it will play again from start every time playback ends.
     /// * Warning: This will not result in a smooth video loop.
@@ -92,12 +94,17 @@ public class AVPlayerView: UIView {
             didPlayToEndTimeObsever = nil
             return
         }
-        
+
+        let safeLoopFrom = loopFrom ?? 0  // Default value if loopFrom is nil
+        let loopFromCMTime = CMTimeMake(value: Int64(safeLoopFrom), timescale: 1000)
+
+        // let loopFromCMTime = CMTimeMake(value: Int64(loopFrom), timescale: 1000)
         didPlayToEndTimeObsever = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime, object: playerItem, queue: nil, using: { _ in
-                player.seek(to: CMTime.zero) { _ in
+                player.seek(to: loopFromCMTime) { _ in
                     player.play()
                 }
         })
     }
+    
 }
