@@ -62,7 +62,7 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
     // if (alphaMovieView != null) {
     //   alphaMovieView.setAutoPlayAfterInit(autoplay);
     // }
-    if (autoplay === false) {
+    if (!autoplay) {
       AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
       if (alphaMovieView != null) {
         alphaMovieView.pause();
@@ -78,7 +78,7 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
     // if (alphaMovieView != null) {
     //   alphaMovieView.setLooping(loop);
     // }
-    if (loop === false) {
+    if (!loop) {
       AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
       if (alphaMovieView != null) {
         alphaMovieView.setLoopStartMs(0);
