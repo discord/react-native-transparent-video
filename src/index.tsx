@@ -16,7 +16,9 @@ const TransparentVideoView = requireNativeComponent(ComponentName);
 
 class TransparentVideo extends React.PureComponent<TransparentVideoProps> {
   render() {
-    const source = resolveAssetSource(this.props.source) || {};
+    const source = resolveAssetSource(this.props.source) || {
+      uri: this.props.source,
+    };
     let uri = source.uri || '';
     if (uri && uri.match(/^\//)) {
       uri = `file://${uri}`;
