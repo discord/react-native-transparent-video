@@ -22,10 +22,11 @@ import java.util.List;
 
 public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout> {
 
-  private static List<LinearLayout> sInstances = new ArrayList<>();
-
   public static final String REACT_CLASS = "TransparentVideoView";
   private static final String TAG = "TransparentVideoViewManager";
+
+  private boolean autoplay = true;
+  private boolean loop = true;
 
   ReactApplicationContext reactContext;
 
@@ -43,7 +44,6 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
   @NonNull
   public LinearLayout createViewInstance(ThemedReactContext reactContext) {
     LinearLayout view = new LinearLayout(this.reactContext);
-    sInstances.add(view);
     return view;
   }
 
@@ -52,7 +52,38 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
     super.onDropViewInstance(view);
     AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
     alphaMovieView.cleanup();
-    sInstances.remove(view);
+  }
+
+  @ReactProp(name = "autoplay")
+  public void setAutoplay(LinearLayout view, boolean autoplay) {
+    this.autoplay = autoplay;
+    Log.d(TAG + " setAutoplay", "autoplay: " + autoplay);
+    // AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
+    // if (alphaMovieView != null) {
+    //   alphaMovieView.setAutoPlayAfterInit(autoplay);
+    // }
+    if (!autoplay) {
+      AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
+      if (alphaMovieView != null) {
+        alphaMovieView.pause();
+      }
+    }
+  }
+
+  @ReactProp(name = "loop")
+  public void setLoop(LinearLayout view, boolean loop) {
+    this.loop = loop;
+    Log.d(TAG + " setLoop", "loop: " + loop);
+    // AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
+    // if (alphaMovieView != null) {
+    //   alphaMovieView.setLooping(loop);
+    // }
+    if (!loop) {
+      AlphaMovieView alphaMovieView = (AlphaMovieView)view.getChildAt(0);
+      if (alphaMovieView != null) {
+        alphaMovieView.setLoopStartMs(0);
+      }
+    }
   }
 
   @ReactProp(name = "src")
