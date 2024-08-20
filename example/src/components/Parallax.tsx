@@ -1,12 +1,22 @@
 import React from 'react';
 
-import ParallaxVideo from './ParallaxVideo';
+import ParallaxVideo, { ParallaxVideoConfig } from './ParallaxVideo';
 
-const Parallax = ({ layers }: any) => {
+interface ParallaxProps {
+  layers: string[];
+  config: ParallaxVideoConfig;
+}
+
+const Parallax = ({ layers, config }: ParallaxProps) => {
   return (
     <>
-      {layers.map((layer: any, index: number) => (
-        <ParallaxVideo key={'layer' + index} source={layer} zIndex={++index} />
+      {layers.map((layer: string, index: number) => (
+        <ParallaxVideo
+          key={'layer' + index}
+          source={layer}
+          zIndex={++index}
+          config={config}
+        />
       ))}
     </>
   );
