@@ -13,7 +13,20 @@ import Animated, {
 const OFFSET = 50;
 const PI = Math.PI;
 
-const ParallaxVideo = ({ source, zIndex }: any) => {
+export interface ParallaxVideoConfig {
+  autoplay: boolean;
+  loop: boolean;
+  loopDelayMs: number;
+}
+
+interface ParallaxVideoProps {
+  layers: string[];
+  zIndex: number;
+  config: ParallaxVideoConfig;
+}
+
+const ParallaxVideo = ({ source, zIndex, config }: ParallaxVideoProps) => {
+  const { autoplay, loop, loopDelayMs } = config;
   const sensor = useAnimatedSensor(SensorType.ACCELEROMETER, { interval: 10 });
 
   const layerStyle = useAnimatedStyle(() => {
@@ -44,7 +57,13 @@ const ParallaxVideo = ({ source, zIndex }: any) => {
 
   return (
     <Animated.View style={[styles.container, layerStyle]}>
-      <TransparentVideo source={source} style={styles.video} autoplay />
+      <TransparentVideo
+        source={source}
+        style={styles.video}
+        autoplay={autoplay}
+        loop={loop}
+        loopDelayMs={loopDelayMs}
+      />
     </Animated.View>
   );
 };

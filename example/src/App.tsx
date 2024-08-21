@@ -2,6 +2,7 @@ import React from 'react';
 
 import { StyleSheet, View } from 'react-native';
 import Parallax from './components/Parallax';
+import { ParallaxVideoConfig } from './ParallaxVideo';
 
 const video1 = require('../assets/videos/1.mp4');
 const video2 = require('../assets/videos/2.mp4');
@@ -10,10 +11,20 @@ const video4 = require('../assets/videos/4.mp4');
 const video5 = require('../assets/videos/5.mp4');
 const video6 = require('../assets/videos/6.mp4');
 
+// TODO: Make config specific to the video layer
+const config: ParallaxVideoConfig = {
+  autoplay: true,
+  loop: true,
+  loopDelayMs: 500,
+};
+
 export default () => {
   return (
     <View style={styles.container}>
-      <Parallax layers={[video1, video2, video3, video4, video5, video6]} />
+      <Parallax
+        layers={[video1, video2, video3, video4, video5, video6]}
+        config={config}
+      />
     </View>
   );
 };
