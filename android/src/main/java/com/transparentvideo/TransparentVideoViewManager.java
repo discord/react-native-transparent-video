@@ -68,6 +68,10 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
 
   @ReactProp(name = "src")
   public void setSrc(LinearLayout view, ReadableMap src) {
+    if (src == null) {
+      return;
+    }
+
     AlphaMovieView alphaMovieView = getOrCreateAlphaMovieView(view);
     String uri = src.getString("uri").toLowerCase();
 
@@ -97,13 +101,12 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
     Log.d(TAG, "setAutoplay - autoplay: " + autoplay);
 
     AlphaMovieView alphaMovieView = getOrCreateAlphaMovieView(view);
+    alphaMovieView.setAutoPlayAfterResume(autoplay);
 
     if (autoplay) {
       alphaMovieView.start();
-      alphaMovieView.setAutoPlayAfterResume(true);
     } else {
-      alphaMovieView.stop();
-      alphaMovieView.setAutoPlayAfterResume(false);
+      alphaMovieView.pause();
     }
   }
 
@@ -150,6 +153,10 @@ public class TransparentVideoViewManager extends SimpleViewManager<LinearLayout>
   @ReactProp(name = "playbackCommand")
   public void executePlaybackCommand(LinearLayout view, String playbackCommandString) {
     PlaybackCommand playbackCommand;
+
+    if (playbackCommandString == null || playbackCommandString.isEmpty()) {
+      return;
+    }
 
     Log.d(TAG, "executePlaybackCommand - playbackCommand: " + playbackCommandString);
 

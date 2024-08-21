@@ -40,630 +40,644 @@ import java.util.HashMap;
 @SuppressLint("ViewConstructor")
 public class AlphaMovieView extends GLTextureView {
 
-  private static final int GL_CONTEXT_VERSION = 2;
+    private static final int GL_CONTEXT_VERSION = 2;
 
-  private static final int NOT_DEFINED = -1;
-  private static final int NOT_DEFINED_COLOR = 0;
-  private static final int TIME_DETECTION_INTERVAL_MS = 100;
+    private static final int NOT_DEFINED = -1;
+    private static final int NOT_DEFINED_COLOR = 0;
+    private static final int TIME_DETECTION_INTERVAL_MS = 100;
 
-  private static final String TAG = "VideoSurfaceView";
+    private static final String TAG = "VideoSurfaceView";
 
-  private static final float VIEW_ASPECT_RATIO = 4f / 3f;
-  private float videoAspectRatio = VIEW_ASPECT_RATIO;
+    private static final float VIEW_ASPECT_RATIO = 4f / 3f;
+    private float videoAspectRatio = VIEW_ASPECT_RATIO;
 
-  VideoRenderer renderer;
-  private MediaPlayer mediaPlayer;
+    VideoRenderer renderer;
+    private MediaPlayer mediaPlayer;
 
-  private OnVideoStartedListener onVideoStartedListener;
-  private OnVideoEndedListener onVideoEndedListener;
+    private OnVideoStartedListener onVideoStartedListener;
+    private OnVideoEndedListener onVideoEndedListener;
 
-  private boolean isSurfaceCreated;
-  private boolean isDataSourceSet;
+    private boolean isSurfaceCreated;
+    private boolean isDataSourceSet;
 
-  private float accuracy;
-  private int alphaColor;
-  private boolean isPacked;
-  private boolean looping;
-  // When loopStartMs == -1, the media player's auto-looping feature will be used based on
-  // whether `looping` is true or false
-  private long loopStartMs = -1;
-  // When loopStartMs >= 0 and loopEndMs == -1, the video will jump back to loopStartMs
-  // once it reaches the end of the video.
-  private long loopEndMs = -1;
-  private long loopDelayMs = 0;
-  // This should be populated with a MediaPlayer.SEEK_* constant
-  // Only for API 26 and above
-  private int loopSeekingMethod = 0; //numeros
-  private String shader; //letras y numeros
+    private float accuracy;
+    private int alphaColor;
+    private boolean isPacked;
+    private boolean looping;
+    // When loopStartMs == -1, the media player's auto-looping feature will be used based on
+    // whether `looping` is true or false
+    private long loopStartMs = -1;
+    // When loopStartMs >= 0 and loopEndMs == -1, the video will jump back to loopStartMs
+    // once it reaches the end of the video.
+    private long loopEndMs = -1;
+    private long loopDelayMs = 0;
+    // This should be populated with a MediaPlayer.SEEK_* constant
+    // Only for API 26 and above
+    private int loopSeekingMethod = 0; //numeros
+    private String shader; //letras y numeros
 
-  private boolean autoPlayAfterResume;//si o no
-  private boolean playAfterResume;
+    private boolean autoPlayAfterResume;//si o no
+    private boolean playAfterResume;
 
-  private PlayerState state = PlayerState.NOT_PREPARED;
+    private PlayerState state = PlayerState.NOT_PREPARED;
 
-  final Handler handler = new Handler();
+    final Handler handler = new Handler();
 
-  final Runnable timeDetector = new Runnable() {
-    public void run() {
-      // Only run when the player is currently playing
-      if (getRootView() == null || state != PlayerState.STARTED) {
-        return;
-      }
-      try {
-        int currentTimeMs = mediaPlayer.getCurrentPosition();
-        int durationMs = mediaPlayer.getDuration();
-        boolean hasCustomLoopEnd = loopEndMs >= 0 && loopEndMs != durationMs;
+    final Runnable timeDetector = new Runnable() {
+        public void run() {
+            // Only run when the player is currently playing
+            if (getRootView() == null || state != PlayerState.STARTED) {
+                return;
+            }
+            try {
+                int currentTimeMs = mediaPlayer.getCurrentPosition();
+                int durationMs = mediaPlayer.getDuration();
+                boolean hasCustomLoopEnd = loopEndMs >= 0 && loopEndMs != durationMs;
 
-        startTimeDetector();
+                startTimeDetector();
 
-        // Try to restart the loop at the end of its iteration, if it's set for a time
-        // before the end of the video
-        if (hasCustomLoopEnd && currentTimeMs >= loopEndMs) {
-          maybeRestartLoop();
+                // Try to restart the loop at the end of its iteration, if it's set for a time
+                // before the end of the video
+                if (hasCustomLoopEnd && currentTimeMs >= loopEndMs) {
+                    maybeRestartLoop();
+                }
+            } catch (Exception exception) {
+                Log.e("AlphaMovieView", "Time detector error. Did you forget to call AlphaMovieView's onPause in the containing fragment/activity? | " + exception.getMessage());
+            }
         }
-      } catch (Exception exception) {
-        Log.e("AlphaMovieView", "Time detector error. Did you forget to call AlphaMovieView's onPause in the containing fragment/activity? | " + exception.getMessage());
-      }
+    };
+
+    final Runnable loopRestarter = new Runnable() {
+        public void run() {
+            if (mediaPlayer == null || isNotPrepared() || isStopped() || isReleased()) {
+                Log.w(TAG, "loopRestarter - Cannot restart loop from current state: " + state);
+                return;
+            }
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    mediaPlayer.seekTo(loopStartMs, loopSeekingMethod);
+                } else {
+                    mediaPlayer.seekTo((int) loopStartMs);
+                }
+
+                start();
+            } catch (RuntimeException e) {
+                Log.e(TAG, "loopRestarter - Error restarting loop from " + loopStartMs +
+                        " ms and state " + state + " | " + e.getMessage());
+            }
+        }
+    };
+
+    public AlphaMovieView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+
+        if (!isInEditMode()) {
+            init(attrs);
+        }
     }
-  };
 
-  final Runnable loopRestarter = new Runnable() {
-    public void run() {
-      if (mediaPlayer == null || state == PlayerState.NOT_PREPARED || isStopped() || isReleased()) {
-        Log.w(TAG, "loopRestarter - Cannot restart loop from current state: " + state);
-        return;
-      }
+    private void init(AttributeSet attrs) {
+        setEGLContextClientVersion(GL_CONTEXT_VERSION);
+        setEGLConfigChooser(8, 8, 8, 8, 16, 0);
 
-      try {
+        initMediaPlayer();
+
+        renderer = new VideoRenderer();
+
+        obtainRendererOptions(attrs);
+
+        this.addOnSurfacePrepareListener();
+        setRenderer(renderer);
+
+        bringToFront();
+        setPreserveEGLContextOnPause(true);
+        setOpaque(false);
+
+        addOnAttachStateChangeListener(new OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+                Log.d(TAG, "View attached to window");
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                Log.d(TAG, "View detached from window");
+                cleanup();
+            }
+        });
+    }
+
+    private void initMediaPlayer() {
+        mediaPlayer = new MediaPlayer();
+        setScreenOnWhilePlaying(true);
+        setLooping(true);
+        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                if (onVideoEndedListener != null) {
+                    onVideoEndedListener.onVideoEnded();
+                }
+
+                // Try to restart the loop if configured to when the video reaches the end
+                if (loopEndMs == -1) {
+                    maybeRestartLoop();
+                } else {
+                    stop();
+                }
+            }
+        });
+    }
+
+    private void obtainRendererOptions(AttributeSet attrs) {
+        //if (attrs != null) {
+        TypedArray arr = getContext().obtainStyledAttributes(attrs, R.styleable.AlphaMovieView);
+        this.accuracy = arr.getFloat(R.styleable.AlphaMovieView_accuracy, 0.95f);
+        this.alphaColor = arr.getColor(R.styleable.AlphaMovieView_alphaColor, Color.argb(1, 0, 255, 0));
+        this.autoPlayAfterResume = arr.getBoolean(R.styleable.AlphaMovieView_autoPlayAfterResume, false);
+        this.isPacked = arr.getBoolean(R.styleable.AlphaMovieView_packed, false);
+        this.loopStartMs = arr.getInteger(R.styleable.AlphaMovieView_loopStartMs, -1);
+        this.loopEndMs = arr.getInteger(R.styleable.AlphaMovieView_loopEndMs, -1);
+        updateMediaPlayerLoopSetting();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-          mediaPlayer.seekTo(loopStartMs, loopSeekingMethod);
+            this.loopSeekingMethod = arr.getInteger(R.styleable.AlphaMovieView_loopSeekingMethod, MediaPlayer.SEEK_CLOSEST_SYNC);
         } else {
-          mediaPlayer.seekTo((int) loopStartMs);
+            this.loopSeekingMethod = 0;
         }
-
-        start();
-      } catch (RuntimeException e) {
-        Log.e(TAG, "loopRestarter - Error restarting loop from " + loopStartMs +
-          " ms and state " + state + " | " + e.getMessage());
-      }
+        this.shader = arr.getString(R.styleable.AlphaMovieView_shader);
+        arr.recycle();
+        updateRendererOptions();
+        // }
     }
-  };
 
-  public AlphaMovieView(Context context, AttributeSet attrs) {
-    super(context, attrs);
-
-    if (!isInEditMode()) {
-      init(attrs);
-    }
-  }
-
-  private void init(AttributeSet attrs) {
-    setEGLContextClientVersion(GL_CONTEXT_VERSION);
-    setEGLConfigChooser(8, 8, 8, 8, 16, 0);
-
-    initMediaPlayer();
-
-    renderer = new VideoRenderer();
-
-    obtainRendererOptions(attrs);
-
-    this.addOnSurfacePrepareListener();
-    setRenderer(renderer);
-
-    bringToFront();
-    setPreserveEGLContextOnPause(true);
-    setOpaque(false);
-
-    addOnAttachStateChangeListener(new OnAttachStateChangeListener() {
-      @Override
-      public void onViewAttachedToWindow(View v) {
-        Log.d(TAG, "View attached to window");
-      }
-
-      @Override
-      public void onViewDetachedFromWindow(View v) {
-        Log.d(TAG, "View detached from window");
-        cleanup();
-      }
-    });
-  }
-
-  private void initMediaPlayer() {
-    mediaPlayer = new MediaPlayer();
-    setScreenOnWhilePlaying(true);
-    setLooping(true);
-    mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-      @Override
-      public void onCompletion(MediaPlayer mp) {
-        if (onVideoEndedListener != null) {
-          onVideoEndedListener.onVideoEnded();
+    private void updateRendererOptions() {
+        renderer.setPacked(isPacked);
+        if (alphaColor != NOT_DEFINED_COLOR) {
+            renderer.setAlphaColor(alphaColor);
         }
-
-        // Try to restart the loop if configured to when the video reaches the end
-        if (loopEndMs == -1) {
-          maybeRestartLoop();
-        } else {
-          pause();
+        if (shader != null) {
+            renderer.setCustomShader(shader);
         }
-      }
-    });
-  }
-
-  private void obtainRendererOptions(AttributeSet attrs) {
-    //if (attrs != null) {
-    TypedArray arr = getContext().obtainStyledAttributes(attrs, R.styleable.AlphaMovieView);
-    this.accuracy = arr.getFloat(R.styleable.AlphaMovieView_accuracy, 0.95f);
-    this.alphaColor = arr.getColor(R.styleable.AlphaMovieView_alphaColor, Color.argb(1,0,255,0));
-    this.autoPlayAfterResume = arr.getBoolean(R.styleable.AlphaMovieView_autoPlayAfterResume, false);
-    this.isPacked = arr.getBoolean(R.styleable.AlphaMovieView_packed, false);
-    this.loopStartMs = arr.getInteger(R.styleable.AlphaMovieView_loopStartMs, -1);
-    this.loopEndMs = arr.getInteger(R.styleable.AlphaMovieView_loopEndMs, -1);
-    updateMediaPlayerLoopSetting();
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      this.loopSeekingMethod = arr.getInteger(R.styleable.AlphaMovieView_loopSeekingMethod, MediaPlayer.SEEK_CLOSEST_SYNC);
-    } else {
-      this.loopSeekingMethod = 0;
-    }
-    this.shader = arr.getString(R.styleable.AlphaMovieView_shader);
-    arr.recycle();
-    updateRendererOptions();
-    // }
-  }
-
-  private void updateRendererOptions() {
-    renderer.setPacked(isPacked);
-    if (alphaColor != NOT_DEFINED_COLOR) {
-      renderer.setAlphaColor(alphaColor);
-    }
-    if (shader != null) {
-      renderer.setCustomShader(shader);
-    }
-    if (accuracy != NOT_DEFINED) {
-      renderer.setAccuracy(accuracy);
-    }
-  }
-
-  private void addOnSurfacePrepareListener() {
-    if (renderer != null) {
-      renderer.setOnSurfacePrepareListener(new VideoRenderer.OnSurfacePrepareListener() {
-        @Override
-        public void surfacePrepared(Surface surface) {
-          isSurfaceCreated = true;
-          mediaPlayer.setSurface(surface);
-          surface.release();
-          if (isDataSourceSet) {
-            prepareAndStartMediaPlayer();
-          }
+        if (accuracy != NOT_DEFINED) {
+            renderer.setAccuracy(accuracy);
         }
-      });
-    }
-  }
-
-
-
-  private void prepareAndStartMediaPlayer() {
-    prepareAsync(new MediaPlayer.OnPreparedListener() {
-      @Override
-      public void onPrepared(MediaPlayer mp) {
-        start();
-      }
-    });
-  }
-
-  private void calculateVideoAspectRatio(int videoWidth, int videoHeight) {
-    if (videoWidth > 0 && videoHeight > 0) {
-      videoAspectRatio = (float) videoWidth / videoHeight;
     }
 
-    requestLayout();
-    invalidate();
-  }
-
-  @Override
-  protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-    int widthMode = View.MeasureSpec.getMode(widthMeasureSpec);
-    int heightMode = View.MeasureSpec.getMode(heightMeasureSpec);
-    int widthSize = View.MeasureSpec.getSize(widthMeasureSpec);
-    int heightSize = View.MeasureSpec.getSize(heightMeasureSpec);
-
-    double currentAspectRatio = (double) widthSize / heightSize;
-    if (currentAspectRatio > videoAspectRatio) {
-      widthSize = (int) (heightSize * videoAspectRatio);
-    } else {
-      heightSize = (int) (widthSize / videoAspectRatio);
-    }
-
-    super.onMeasure(View.MeasureSpec.makeMeasureSpec(widthSize, widthMode),
-      View.MeasureSpec.makeMeasureSpec(heightSize, heightMode));
-  }
-
-  private void onDataSourceSet(MediaMetadataRetriever retriever) {
-    int videoWidth = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
-    int videoHeight = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
-    if (isPacked) {
-      // Packed videos are assumed to be contain the alpha channel on the right side of the
-      // original video, so the actual video width is half of the whole video
-      videoHeight /= 2.0f;
-    }
-
-    calculateVideoAspectRatio(videoWidth, videoHeight);
-    isDataSourceSet = true;
-
-    if (isSurfaceCreated) {
-      prepareAndStartMediaPlayer();
-    }
-  }
-
-  public void setAutoPlayAfterResume(boolean autoPlayAfterResume) {
-    this.autoPlayAfterResume = autoPlayAfterResume;
-  }
-
-  public void setPacked(boolean isPacked) {
-    this.isPacked = isPacked;
-    renderer.setPacked(isPacked);
-    updateRendererOptions();
-    renderer.refreshShader();
-  }
-
-  private void updateMediaPlayerLoopSetting() {
-    if (loopStartMs >= 0 || loopEndMs >= 0 || loopDelayMs >= 0) {
-      // Disable MediaPlayer's built in looping if manual loop section is specified
-      mediaPlayer.setLooping(false);
-    } else {
-      mediaPlayer.setLooping(looping);
-    }
-  }
-
-  // Sets the start point of a loop. If >= 0, will override any setting set via mediaPlayer.setLooping
-  public void setLoopStartMs(long startMs) {
-    this.loopStartMs = startMs;
-    updateMediaPlayerLoopSetting();
-  }
-
-  // Sets the end point of a loop. If >= 0, will override any setting set via mediaPlayer.setLooping
-  public void setLoopEndMs(long endMs) {
-    this.loopEndMs = endMs;
-    updateMediaPlayerLoopSetting();
-  }
-
-  public void setLoopDelayMs(long loopDelayMs) {
-    this.loopDelayMs = loopDelayMs;
-
-    // To add a loop delay, the media player's automatic looping must be disabled so this
-    // view can handle the looping. Manual looping requires that loopStartMs is set.
-    if (loopDelayMs > 0 && loopStartMs == -1) {
-      loopStartMs = 0;
-    }
-
-    updateMediaPlayerLoopSetting();
-  }
-
-  public void setVideoFromAssets(String assetsFileName) {
-    reset();
-
-    try {
-      AssetFileDescriptor assetFileDescriptor = getContext().getAssets().openFd(assetsFileName);
-      mediaPlayer.setDataSource(assetFileDescriptor.getFileDescriptor(), assetFileDescriptor.getStartOffset(), assetFileDescriptor.getLength());
-
-      MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-      retriever.setDataSource(assetFileDescriptor.getFileDescriptor(), assetFileDescriptor.getStartOffset(), assetFileDescriptor.getLength());
-
-      onDataSourceSet(retriever);
-
-    } catch (IOException e) {
-      Log.e(TAG, e.getMessage(), e);
-    }
-  }
-
-  public void setVideoFromAssets(String assetsFileName, boolean isPacked) {
-    setPacked(isPacked);
-    setVideoFromAssets(assetsFileName);
-  }
-
-  public void setVideoByUrl(String url) {
-    reset();
-
-    try {
-      mediaPlayer.setDataSource(url);
-
-      MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-      retriever.setDataSource(url, new HashMap<String, String>());
-
-      onDataSourceSet(retriever);
-
-    } catch (IOException e) {
-      Log.e(TAG, e.getMessage(), e);
-    }
-  }
-
-  public void setVideoFromResourceId(Context context, int resId) {
-    reset();
-
-    try {
-      AssetFileDescriptor afd = context.getResources().openRawResourceFd(resId);
-      if (afd == null) return;
-
-      FileDescriptor fileDescriptor = afd.getFileDescriptor();
-      long startOffset = afd.getStartOffset();
-      long endOffset = afd.getLength();
-      mediaPlayer.setDataSource(fileDescriptor, startOffset, endOffset);
-
-      MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-      retriever.setDataSource(fileDescriptor, startOffset, endOffset);
-
-      onDataSourceSet(retriever);
-
-    } catch (IOException e) {
-      Log.e(TAG + " setVideoFromResourceId", e.getMessage(), e);
-    }
-  }
-
-  public void setVideoFromFile(FileDescriptor fileDescriptor) {
-    reset();
-
-    try {
-      mediaPlayer.setDataSource(fileDescriptor);
-
-      MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-      retriever.setDataSource(fileDescriptor);
-
-      onDataSourceSet(retriever);
-
-    } catch (IOException e) {
-      Log.e(TAG, e.getMessage(), e);
-    }
-  }
-
-  public void setVideoFromFile(FileDescriptor fileDescriptor, int startOffset, int endOffset) {
-    reset();
-
-    try {
-      mediaPlayer.setDataSource(fileDescriptor, startOffset, endOffset);
-
-      MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-      retriever.setDataSource(fileDescriptor, startOffset, endOffset);
-
-      onDataSourceSet(retriever);
-
-    } catch (IOException e) {
-      Log.e(TAG, e.getMessage(), e);
-    }
-  }
-
-  @TargetApi(23)
-  public void setVideoFromMediaDataSource(MediaDataSource mediaDataSource) {
-    reset();
-
-    mediaPlayer.setDataSource(mediaDataSource);
-
-    MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-    retriever.setDataSource(mediaDataSource);
-
-    onDataSourceSet(retriever);
-  }
-
-  public void setVideoFromUri(Context context, Uri uri) {
-    reset();
-
-    try {
-      mediaPlayer.setDataSource(context, uri);
-
-      MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-      retriever.setDataSource(context, uri);
-
-      onDataSourceSet(retriever);
-    } catch (IOException e) {
-      Log.e(TAG, e.getMessage(), e);
-    }
-  }
-
-  @Override
-  public void onResume() {
-    super.onResume();
-    if (autoPlayAfterResume && playAfterResume) {
-      playAfterResume = false;
-      start();
-    }
-  }
-
-  @Override
-  public void onPause() {
-    super.onPause();
-    handler.removeCallbacks(timeDetector);
-    if (isPlaying() && autoPlayAfterResume) {
-      playAfterResume = true;
-    }
-    pause();
-  }
-
-  protected void cleanup() {
-    release();
-    handler.removeCallbacks(timeDetector);
-    handler.removeCallbacks(loopRestarter);
-    this.onVideoEndedListener = null;
-
-    if (mediaPlayer != null) {
-      mediaPlayer.setOnCompletionListener(null);
-      mediaPlayer.setOnPreparedListener(null);
-      mediaPlayer.setOnErrorListener(null);
-      mediaPlayer.setOnSeekCompleteListener(null);
-    }
-  }
-
-  private void prepareAsync(final MediaPlayer.OnPreparedListener onPreparedListener) {
-    if (mediaPlayer != null && state == PlayerState.NOT_PREPARED
-      || state == PlayerState.STOPPED) {
-      mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-        @Override
-        public void onPrepared(MediaPlayer mp) {
-          state = PlayerState.PREPARED;
-          onPreparedListener.onPrepared(mp);
+    private void addOnSurfacePrepareListener() {
+        if (renderer != null) {
+            renderer.setOnSurfacePrepareListener(new VideoRenderer.OnSurfacePrepareListener() {
+                @Override
+                public void surfacePrepared(Surface surface) {
+                    isSurfaceCreated = true;
+                    mediaPlayer.setSurface(surface);
+                    surface.release();
+                    if (isDataSourceSet) {
+                        prepareAndStartMediaPlayer();
+                    }
+                }
+            });
         }
-      });
-      mediaPlayer.prepareAsync();
     }
-  }
 
-  private void startTimeDetector() {
-    handler.removeCallbacks(timeDetector); // Remove any existing callbacks
-    handler.postDelayed(timeDetector, TIME_DETECTION_INTERVAL_MS);
-  }
 
-  public void start() {
-    Log.d(TAG, "Start called with state " + state);
-    if (mediaPlayer != null) {
-      switch (state) {
-        case PREPARED:
-          mediaPlayer.start();
-          startTimeDetector();
-          state = PlayerState.STARTED;
-          if (onVideoStartedListener != null) {
-            onVideoStartedListener.onVideoStarted();
-          }
-          break;
-        case PAUSED:
-          mediaPlayer.start();
-          startTimeDetector();
-          state = PlayerState.STARTED;
-          break;
-        case STOPPED:
-          prepareAsync(new MediaPlayer.OnPreparedListener() {
+    private void prepareAndStartMediaPlayer() {
+        prepareAsync(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mp) {
-              mediaPlayer.start();
-              startTimeDetector();
-              state = PlayerState.STARTED;
-              if (onVideoStartedListener != null) {
-                onVideoStartedListener.onVideoStarted();
-              }
+                start();
             }
-          });
-          break;
-      }
-    }
-  }
-
-  public void pause() {
-    if (mediaPlayer != null && state == PlayerState.STARTED) {
-      mediaPlayer.pause();
-      state = PlayerState.PAUSED;
-    }
-  }
-
-  public void stop() {
-    if (mediaPlayer != null && (state == PlayerState.STARTED || state == PlayerState.PAUSED)) {
-      mediaPlayer.stop();
-      state = PlayerState.STOPPED;
-    }
-  }
-
-  public void reset() {
-    if (mediaPlayer != null && (state == PlayerState.STARTED || state == PlayerState.PAUSED ||
-      state == PlayerState.STOPPED)) {
-      mediaPlayer.reset();
-      state = PlayerState.NOT_PREPARED;
-    }
-  }
-
-  public void release() {
-    if (mediaPlayer != null) {
-      mediaPlayer.release();
-      state = PlayerState.RELEASE;
-    }
-  }
-
-  public PlayerState getState() {
-    return state;
-  }
-
-  public boolean isPlaying() {
-    return state == PlayerState.STARTED;
-  }
-
-  public boolean isPaused() {
-    return state == PlayerState.PAUSED;
-  }
-
-  public boolean isStopped() {
-    return state == PlayerState.STOPPED;
-  }
-
-  public boolean isReleased() {
-    return state == PlayerState.RELEASE;
-  }
-
-  public void seekTo(int msec) {
-    mediaPlayer.seekTo(msec);
-  }
-
-  public void setLooping(boolean looping) {
-    this.looping = looping;
-
-    updateMediaPlayerLoopSetting();
-  }
-
-  public int getCurrentPosition() {
-    return mediaPlayer.getCurrentPosition();
-  }
-
-  public void setScreenOnWhilePlaying(boolean screenOn) {
-    mediaPlayer.setScreenOnWhilePlaying(screenOn);
-  }
-
-  public void setOnErrorListener(MediaPlayer.OnErrorListener onErrorListener){
-    mediaPlayer.setOnErrorListener(onErrorListener);
-  }
-
-  public void setOnVideoStartedListener(OnVideoStartedListener onVideoStartedListener) {
-    this.onVideoStartedListener = onVideoStartedListener;
-  }
-
-  public void setOnVideoEndedListener(OnVideoEndedListener onVideoEndedListener) {
-    this.onVideoEndedListener = onVideoEndedListener;
-  }
-
-  public void setOnSeekCompleteListener(MediaPlayer.OnSeekCompleteListener onSeekCompleteListener) {
-    mediaPlayer.setOnSeekCompleteListener(onSeekCompleteListener);
-  }
-
-  public void setLoopSeekingMethod(int loopSeekingMethod) {
-    this.loopSeekingMethod = loopSeekingMethod;
-  }
-
-  public int getLoopSeekingMethod() {
-    return this.loopSeekingMethod;
-  }
-
-  public MediaPlayer getMediaPlayer() {
-    return mediaPlayer;
-  }
-
-  public interface OnVideoStartedListener {
-    void onVideoStarted();
-  }
-
-  public interface OnVideoEndedListener {
-    void onVideoEnded();
-  }
-
-  private enum PlayerState {
-    NOT_PREPARED, PREPARED, STARTED, PAUSED, STOPPED, RELEASE
-  }
-
-  private void maybeRestartLoop() {
-    if (!looping || loopStartMs < 0) {
-      Log.d(TAG, "maybeRestartLoop - Manual looping is disabled. Pausing video.");
-      pause();
-
-      return;
+        });
     }
 
-    if (loopDelayMs > 0) {
-      // If loopDelayMs is set, pause the video for the specified time before restarting the loop
-      pause();
-      handler.postDelayed(loopRestarter, loopDelayMs);
-    } else {
-      loopRestarter.run();
+    private void calculateVideoAspectRatio(int videoWidth, int videoHeight) {
+        if (videoWidth > 0 && videoHeight > 0) {
+            videoAspectRatio = (float) videoWidth / videoHeight;
+        }
+
+        requestLayout();
+        invalidate();
     }
-  }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int widthMode = View.MeasureSpec.getMode(widthMeasureSpec);
+        int heightMode = View.MeasureSpec.getMode(heightMeasureSpec);
+        int widthSize = View.MeasureSpec.getSize(widthMeasureSpec);
+        int heightSize = View.MeasureSpec.getSize(heightMeasureSpec);
+
+        double currentAspectRatio = (double) widthSize / heightSize;
+        if (currentAspectRatio > videoAspectRatio) {
+            widthSize = (int) (heightSize * videoAspectRatio);
+        } else {
+            heightSize = (int) (widthSize / videoAspectRatio);
+        }
+
+        super.onMeasure(View.MeasureSpec.makeMeasureSpec(widthSize, widthMode),
+                View.MeasureSpec.makeMeasureSpec(heightSize, heightMode));
+    }
+
+    private void onDataSourceSet(MediaMetadataRetriever retriever) {
+        int videoWidth = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+        int videoHeight = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+        if (isPacked) {
+            // Packed videos are assumed to be contain the alpha channel on the right side of the
+            // original video, so the actual video width is half of the whole video
+            videoHeight /= 2.0f;
+        }
+
+        calculateVideoAspectRatio(videoWidth, videoHeight);
+        isDataSourceSet = true;
+
+        if (isSurfaceCreated) {
+            prepareAndStartMediaPlayer();
+        }
+    }
+
+    public void setAutoPlayAfterResume(boolean autoPlayAfterResume) {
+        this.autoPlayAfterResume = autoPlayAfterResume;
+    }
+
+    public void setPacked(boolean isPacked) {
+        this.isPacked = isPacked;
+        renderer.setPacked(isPacked);
+        updateRendererOptions();
+        renderer.refreshShader();
+    }
+
+    private void updateMediaPlayerLoopSetting() {
+        if (loopStartMs >= 0 || loopEndMs >= 0 || loopDelayMs > 0) {
+            // Disable MediaPlayer's built in looping if manual loop section is specified
+            mediaPlayer.setLooping(false);
+        } else {
+            mediaPlayer.setLooping(looping);
+        }
+    }
+
+    // Sets the start point of a loop. If >= 0, will override any setting set via mediaPlayer.setLooping
+    public void setLoopStartMs(long startMs) {
+        this.loopStartMs = startMs;
+        updateMediaPlayerLoopSetting();
+    }
+
+    // Sets the end point of a loop. If >= 0, will override any setting set via mediaPlayer.setLooping
+    public void setLoopEndMs(long endMs) {
+        this.loopEndMs = endMs;
+        updateMediaPlayerLoopSetting();
+    }
+
+    public void setLoopDelayMs(long loopDelayMs) {
+        this.loopDelayMs = loopDelayMs;
+
+        // To add a loop delay, the media player's automatic looping must be disabled so this
+        // view can handle the looping. Manual looping requires that loopStartMs is set.
+        if (loopDelayMs > 0 && loopStartMs == -1) {
+            loopStartMs = 0;
+        }
+
+        updateMediaPlayerLoopSetting();
+    }
+
+    public void setVideoFromAssets(String assetsFileName) {
+        reset();
+
+        try {
+            AssetFileDescriptor assetFileDescriptor = getContext().getAssets().openFd(assetsFileName);
+            mediaPlayer.setDataSource(assetFileDescriptor.getFileDescriptor(), assetFileDescriptor.getStartOffset(), assetFileDescriptor.getLength());
+
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(assetFileDescriptor.getFileDescriptor(), assetFileDescriptor.getStartOffset(), assetFileDescriptor.getLength());
+
+            onDataSourceSet(retriever);
+
+        } catch (IOException e) {
+            Log.e(TAG, e.getMessage(), e);
+        }
+    }
+
+    public void setVideoFromAssets(String assetsFileName, boolean isPacked) {
+        setPacked(isPacked);
+        setVideoFromAssets(assetsFileName);
+    }
+
+    public void setVideoByUrl(String url) {
+        reset();
+
+        try {
+            mediaPlayer.setDataSource(url);
+
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(url, new HashMap<String, String>());
+
+            onDataSourceSet(retriever);
+
+        } catch (IOException e) {
+            Log.e(TAG, e.getMessage(), e);
+        }
+    }
+
+    public void setVideoFromResourceId(Context context, int resId) {
+        reset();
+
+        try {
+            AssetFileDescriptor afd = context.getResources().openRawResourceFd(resId);
+            if (afd == null) return;
+
+            FileDescriptor fileDescriptor = afd.getFileDescriptor();
+            long startOffset = afd.getStartOffset();
+            long endOffset = afd.getLength();
+            mediaPlayer.setDataSource(fileDescriptor, startOffset, endOffset);
+
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(fileDescriptor, startOffset, endOffset);
+
+            onDataSourceSet(retriever);
+
+        } catch (IOException e) {
+            Log.e(TAG + " setVideoFromResourceId", e.getMessage(), e);
+        }
+    }
+
+    public void setVideoFromFile(FileDescriptor fileDescriptor) {
+        reset();
+
+        try {
+            mediaPlayer.setDataSource(fileDescriptor);
+
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(fileDescriptor);
+
+            onDataSourceSet(retriever);
+
+        } catch (IOException e) {
+            Log.e(TAG, e.getMessage(), e);
+        }
+    }
+
+    public void setVideoFromFile(FileDescriptor fileDescriptor, int startOffset, int endOffset) {
+        reset();
+
+        try {
+            mediaPlayer.setDataSource(fileDescriptor, startOffset, endOffset);
+
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(fileDescriptor, startOffset, endOffset);
+
+            onDataSourceSet(retriever);
+
+        } catch (IOException e) {
+            Log.e(TAG, e.getMessage(), e);
+        }
+    }
+
+    @TargetApi(23)
+    public void setVideoFromMediaDataSource(MediaDataSource mediaDataSource) {
+        reset();
+
+        mediaPlayer.setDataSource(mediaDataSource);
+
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        retriever.setDataSource(mediaDataSource);
+
+        onDataSourceSet(retriever);
+    }
+
+    public void setVideoFromUri(Context context, Uri uri) {
+        reset();
+
+        try {
+            mediaPlayer.setDataSource(context, uri);
+
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(context, uri);
+
+            onDataSourceSet(retriever);
+        } catch (IOException e) {
+            Log.e(TAG, e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (autoPlayAfterResume && playAfterResume) {
+            playAfterResume = false;
+            start();
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        handler.removeCallbacks(timeDetector);
+        if (isPlaying() && autoPlayAfterResume) {
+            playAfterResume = true;
+        }
+        pause();
+    }
+
+    protected void cleanup() {
+        release();
+        handler.removeCallbacks(timeDetector);
+        handler.removeCallbacks(loopRestarter);
+        this.onVideoEndedListener = null;
+
+        if (mediaPlayer != null) {
+            mediaPlayer.setOnCompletionListener(null);
+            mediaPlayer.setOnPreparedListener(null);
+            mediaPlayer.setOnErrorListener(null);
+            mediaPlayer.setOnSeekCompleteListener(null);
+        }
+    }
+
+    private void prepareAsync(final MediaPlayer.OnPreparedListener onPreparedListener) {
+        if (mediaPlayer != null && state == PlayerState.NOT_PREPARED
+                || state == PlayerState.STOPPED) {
+            mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                @Override
+                public void onPrepared(MediaPlayer mp) {
+                    state = PlayerState.PREPARED;
+                    onPreparedListener.onPrepared(mp);
+                }
+            });
+            mediaPlayer.prepareAsync();
+        }
+    }
+
+    private void startTimeDetector() {
+        handler.removeCallbacks(timeDetector); // Remove any existing callbacks
+        handler.postDelayed(timeDetector, TIME_DETECTION_INTERVAL_MS);
+    }
+
+    public void start() {
+        Log.d(TAG, "Start called with state " + state);
+        if (mediaPlayer != null) {
+            switch (state) {
+                case PREPARED:
+                    mediaPlayer.start();
+                    startTimeDetector();
+                    state = PlayerState.STARTED;
+                    if (onVideoStartedListener != null) {
+                        onVideoStartedListener.onVideoStarted();
+                    }
+                    break;
+                case PAUSED:
+                    mediaPlayer.start();
+                    startTimeDetector();
+                    state = PlayerState.STARTED;
+                    break;
+                case STOPPED:
+                    prepareAsync(new MediaPlayer.OnPreparedListener() {
+                        @Override
+                        public void onPrepared(MediaPlayer mp) {
+                            mediaPlayer.start();
+                            startTimeDetector();
+                            state = PlayerState.STARTED;
+                            if (onVideoStartedListener != null) {
+                                onVideoStartedListener.onVideoStarted();
+                            }
+                        }
+                    });
+                    break;
+            }
+        }
+    }
+
+    public void pause() {
+        if (mediaPlayer != null && state == PlayerState.STARTED) {
+            mediaPlayer.pause();
+            state = PlayerState.PAUSED;
+        }
+    }
+
+    public void stop() {
+        if (mediaPlayer != null && (state == PlayerState.STARTED || state == PlayerState.PAUSED)) {
+            mediaPlayer.stop();
+            state = PlayerState.STOPPED;
+        }
+    }
+
+    public void reset() {
+        if (mediaPlayer != null && (state == PlayerState.STARTED || state == PlayerState.PAUSED ||
+                state == PlayerState.STOPPED)) {
+            mediaPlayer.reset();
+            state = PlayerState.NOT_PREPARED;
+        }
+    }
+
+    public void release() {
+        if (mediaPlayer != null) {
+            mediaPlayer.release();
+            state = PlayerState.RELEASE;
+        }
+    }
+
+    public PlayerState getState() {
+        return state;
+    }
+
+    public boolean isNotPrepared() {
+        return state == PlayerState.NOT_PREPARED;
+    }
+
+    public boolean isPrepared() {
+        return state == PlayerState.PREPARED;
+    }
+
+    public boolean isPlaying() {
+        return state == PlayerState.STARTED;
+    }
+
+    public boolean isPaused() {
+        return state == PlayerState.PAUSED;
+    }
+
+    public boolean isStopped() {
+        return state == PlayerState.STOPPED;
+    }
+
+    public boolean isReleased() {
+        return state == PlayerState.RELEASE;
+    }
+
+    public void seekTo(int msec) {
+        mediaPlayer.seekTo(msec);
+    }
+
+    public void setLooping(boolean looping) {
+        this.looping = looping;
+
+        updateMediaPlayerLoopSetting();
+    }
+
+    public int getCurrentPosition() {
+        return mediaPlayer.getCurrentPosition();
+    }
+
+    public void setScreenOnWhilePlaying(boolean screenOn) {
+        mediaPlayer.setScreenOnWhilePlaying(screenOn);
+    }
+
+    public void setOnErrorListener(MediaPlayer.OnErrorListener onErrorListener) {
+        mediaPlayer.setOnErrorListener(onErrorListener);
+    }
+
+    public void setOnVideoStartedListener(OnVideoStartedListener onVideoStartedListener) {
+        this.onVideoStartedListener = onVideoStartedListener;
+    }
+
+    public void setOnVideoEndedListener(OnVideoEndedListener onVideoEndedListener) {
+        this.onVideoEndedListener = onVideoEndedListener;
+    }
+
+    public void setOnSeekCompleteListener(MediaPlayer.OnSeekCompleteListener onSeekCompleteListener) {
+        mediaPlayer.setOnSeekCompleteListener(onSeekCompleteListener);
+    }
+
+    public void setLoopSeekingMethod(int loopSeekingMethod) {
+        this.loopSeekingMethod = loopSeekingMethod;
+    }
+
+    public int getLoopSeekingMethod() {
+        return this.loopSeekingMethod;
+    }
+
+    public MediaPlayer getMediaPlayer() {
+        return mediaPlayer;
+    }
+
+    public interface OnVideoStartedListener {
+        void onVideoStarted();
+    }
+
+    public interface OnVideoEndedListener {
+        void onVideoEnded();
+    }
+
+    public enum PlayerState {
+        NOT_PREPARED, PREPARED, STARTED, PAUSED, STOPPED, RELEASE
+    }
+
+    private void maybeRestartLoop() {
+        if (!looping) {
+            Log.d(TAG, "maybeRestartLoop - looping is disabled. Pausing video.");
+            pause();
+
+            return;
+        }
+
+        if (loopStartMs < 0) {
+            Log.d(TAG, "maybeRestartLoop - loopStartMs is not set. Looping is handled " +
+                    "automatically by the media player.");
+
+            return;
+        }
+
+        if (loopDelayMs > 0) {
+            // If loopDelayMs is set, pause the video for the specified time before restarting the loop
+            pause();
+            handler.postDelayed(loopRestarter, loopDelayMs);
+        } else {
+            loopRestarter.run();
+        }
+    }
 }
